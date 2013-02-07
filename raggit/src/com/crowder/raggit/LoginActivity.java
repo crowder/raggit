@@ -15,22 +15,23 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+
 /**
  * Activity which displays a login screen to the user, offering registration as
  * well.
  */
 public class LoginActivity extends Activity {
-	/**
-	 * A dummy authentication store containing known user names and passwords.
-	 * TODO: remove after connecting to a real authentication system.
-	 */
-	private static final String[] DUMMY_CREDENTIALS = new String[] {
-			"foo@example.com:hello", "bar@example.com:world" };
-
-	/**
-	 * The default email to populate the email field with.
-	 */
-	public static final String EXTRA_EMAIL = "com.example.android.authenticatordemo.extra.EMAIL";
+    
+    // Intent provided email
+    public static final String EXTRA_EMAIL = "com.crowder.raggit.EMAIL";
 
 	/**
 	 * Keep track of the login task to ensure we can cancel it if requested.
@@ -38,8 +39,10 @@ public class LoginActivity extends Activity {
 	private UserLoginTask mAuthTask = null;
 
 	// Values for email and password at the time of the login attempt.
-	private String mEmail;
+	private String mLogin;
 	private String mPassword;
+	private String modhash;
+	private String session;
 
 	// UI references.
 	private EditText mEmailView;
@@ -55,9 +58,9 @@ public class LoginActivity extends Activity {
 		setContentView(R.layout.activity_login);
 
 		// Set up the login form.
-		mEmail = getIntent().getStringExtra(EXTRA_EMAIL);
+		mLogin = getIntent().getStringExtra(EXTRA_EMAIL);
 		mEmailView = (EditText) findViewById(R.id.email);
-		mEmailView.setText(mEmail);
+		mEmailView.setText(mLogin);
 
 		mPasswordView = (EditText) findViewById(R.id.password);
 		mPasswordView
@@ -108,7 +111,7 @@ public class LoginActivity extends Activity {
 		mPasswordView.setError(null);
 
 		// Store values at the time of the login attempt.
-		mEmail = mEmailView.getText().toString();
+		mLogin = mEmailView.getText().toString();
 		mPassword = mPasswordView.getText().toString();
 
 		boolean cancel = false;
@@ -126,15 +129,15 @@ public class LoginActivity extends Activity {
 		}
 
 		// Check for a valid email address.
-		if (TextUtils.isEmpty(mEmail)) {
+		if (TextUtils.isEmpty(mLogin)) {
 			mEmailView.setError(getString(R.string.error_field_required));
 			focusView = mEmailView;
 			cancel = true;
-		} else if (!mEmail.contains("@")) {
+		} /* else if (!mEmail.contains("@")) {
 			mEmailView.setError(getString(R.string.error_invalid_email));
 			focusView = mEmailView;
 			cancel = true;
-		}
+		} */
 
 		if (cancel) {
 			// There was an error; don't attempt login and focus the first
@@ -198,21 +201,30 @@ public class LoginActivity extends Activity {
 	public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
 		@Override
 		protected Boolean doInBackground(Void... params) {
-			// TODO: attempt authentication against a network service.
-
+		    
+		    // Authenticate with reddit
 			try {
-				// Simulate network access.
-				Thread.sleep(2000);
-			} catch (InterruptedException e) {
-				return false;
-			}
+			      // We'll use POST to deliver credentials
+			      HttpURLConnection loginConnection;
 
-			for (String credential : DUMMY_CREDENTIALS) {
-				String[] pieces = credential.split(":");
-				if (pieces[0].equals(mEmail)) {
-					// Account exists, return true if the password matches.
-					return pieces[1].equals(mPassword);
-				}
+			      // Build a new connection object from our URL
+			      loginConnection = (HttpURLConnection) new URL("https://ssl.reddit.com/api/login/" + mLogin).openConnection();
+			      loginConnection.setDoOutput(true);
+			      String creds = "user="   + URLEncoder.encode(mLogin, "UTF-8") + "&" +
+			                     "passwd=" + URLEncoder.encode(mPassword, "UTF-8") + "&" + "&api_type=json";
+			      loginConnection.setFixedLengthStreamingMode(creds.getBytes().length);
+			      loginConnection.getOutputStream().write(creds.getBytes());
+			      InputStream response = loginConnection.getInputStream();
+			      JSONObject jsres = new JSONObject(Utilities.convertInputStreamToString(response));
+			      JSONObject json = jsres.getJSONObject("json");
+			      JSONObject data = json.getJSONObject("data");
+
+			      modhash = data.getString("modhash");
+			      session = data.getString("cookie");
+			} catch (IOException e) {
+			    return false;
+			} catch (JSONException e) {
+			    return false;
 			}
 
 			// TODO: register the new account here.
