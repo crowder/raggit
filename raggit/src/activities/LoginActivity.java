@@ -1,12 +1,15 @@
-package com.crowder.raggit;
+package activities;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -14,6 +17,13 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import com.crowder.raggit.R;
+import com.crowder.raggit.Utilities;
+import com.crowder.raggit.R.id;
+import com.crowder.raggit.R.layout;
+import com.crowder.raggit.R.menu;
+import com.crowder.raggit.R.string;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -211,7 +221,7 @@ public class LoginActivity extends Activity {
 			      loginConnection = (HttpURLConnection) new URL("https://ssl.reddit.com/api/login/" + mLogin).openConnection();
 			      loginConnection.setDoOutput(true);
 			      String creds = "user="   + URLEncoder.encode(mLogin, "UTF-8") + "&" +
-			                     "passwd=" + URLEncoder.encode(mPassword, "UTF-8") + "&" + "&api_type=json";
+			                     "passwd=" + URLEncoder.encode(mPassword, "UTF-8") + "&api_type=json";
 			      loginConnection.setFixedLengthStreamingMode(creds.getBytes().length);
 			      loginConnection.getOutputStream().write(creds.getBytes());
 			      InputStream response = loginConnection.getInputStream();
@@ -227,8 +237,15 @@ public class LoginActivity extends Activity {
 			    return false;
 			}
 
-			// TODO: register the new account here.
 			return true;
+		}
+
+		protected void saveAuthenticationData() {
+	        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(LoginActivity.this);
+	        Editor editor = settings.edit();
+	        editor.putString("session", session);
+	        editor.putString("modhash", modhash);
+	        editor.commit();		    
 		}
 
 		@Override
@@ -237,6 +254,7 @@ public class LoginActivity extends Activity {
 			showProgress(false);
 
 			if (success) {
+	            saveAuthenticationData();
 				finish();
 			} else {
 				mPasswordView
